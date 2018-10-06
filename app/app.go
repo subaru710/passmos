@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/cosmos/cosmos-sdk/x/ibc"
+	"github.com/subaru710/passmos/x/passport"
 	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -33,12 +34,14 @@ type PassmosApp struct {
 	keyMain    *sdk.KVStoreKey
 	keyAccount *sdk.KVStoreKey
 	keyIBC     *sdk.KVStoreKey
+	keyPass    *sdk.KVStoreKey
 
 	// manage getting and setting accounts
 	accountMapper       auth.AccountMapper
 	feeCollectionKeeper auth.FeeCollectionKeeper
 	coinKeeper          bank.Keeper
 	ibcMapper           ibc.Mapper
+	passKeeper          passport.Keeper
 }
 
 // NewPassmosApp returns a reference to a new PassmosApp given a logger and
@@ -57,6 +60,7 @@ func NewPassmosApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*bam.Bas
 		keyMain:    sdk.NewKVStoreKey("main"),
 		keyAccount: sdk.NewKVStoreKey("acc"),
 		keyIBC:     sdk.NewKVStoreKey("ibc"),
+		keyPass:    sdk.NewKVStoreKey("passport"),
 	}
 
 	// define and attach the mappers and keepers
@@ -69,11 +73,15 @@ func NewPassmosApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*bam.Bas
 	)
 	app.coinKeeper = bank.NewKeeper(app.accountMapper)
 	app.ibcMapper = ibc.NewMapper(app.cdc, app.keyIBC, app.RegisterCodespace(ibc.DefaultCodespace))
+	app.passKeeper = passport.NewKeeper(app.keyPass, passport.NewIpfsStore("https://ipfs.infura.io:5001"))
 
 	// register message routes
 	app.Router().
 		AddRoute("bank", bank.NewHandler(app.coinKeeper)).
-		AddRoute("ibc", ibc.NewHandler(app.ibcMapper, app.coinKeeper))
+		AddRoute("ibc", ibc.NewHandler(app.ibcMapper, app.coinKeeper)).
+		AddRoute("passport", passport.NewHandler(app.passKeeper))
+
+	// register query routes
 
 	// perform initialization logic
 	app.SetInitChainer(app.initChainer)
@@ -82,7 +90,7 @@ func NewPassmosApp(logger log.Logger, db dbm.DB, baseAppOptions ...func(*bam.Bas
 	app.SetAnteHandler(auth.NewAnteHandler(app.accountMapper, app.feeCollectionKeeper))
 
 	// mount the multistore and load the latest state
-	app.MountStoresIAVL(app.keyMain, app.keyAccount, app.keyIBC)
+	app.MountStoresIAVL(app.keyMain, app.keyAccount, app.keyIBC, app.keyPass)
 	err := app.LoadLatestVersion(app.keyMain)
 	if err != nil {
 		cmn.Exit(err.Error())
@@ -103,6 +111,7 @@ func MakeCodec() *wire.Codec {
 	bank.RegisterWire(cdc)
 	ibc.RegisterWire(cdc)
 	auth.RegisterWire(cdc)
+	passport.RegisterWire(cdc)
 
 	// register custom type
 	cdc.RegisterConcrete(&types.AppAccount{}, "basecoin/Account", nil)
