@@ -14,6 +14,8 @@ func NewHandler(k Keeper) sdk.Handler {
 			return handleMsgCreate(ctx, k, msg)
 		case MsgUpdate:
 			return handleMsgUpdate(ctx, k, msg)
+		case MsgAuthorize:
+			return handleMsgAuthorize(ctx, k, msg)
 		default:
 			errMsg := "Unrecognized passport Msg type: " + reflect.TypeOf(msg).Name()
 			return sdk.ErrUnknownRequest(errMsg).Result()
@@ -44,5 +46,16 @@ func handleMsgUpdate(ctx sdk.Context, k Keeper, msg MsgUpdate) sdk.Result {
 	return sdk.Result{
 		Code: sdk.ABCICodeOK,
 		Data: data,
+	}
+}
+
+// Handle MsgAuthorize.
+func handleMsgAuthorize(ctx sdk.Context, k Keeper, msg MsgAuthorize) sdk.Result {
+	err := k.AuthorizePassport(ctx, msg.Address, msg.Receiver)
+	if err != nil {
+		return err.Result()
+	}
+	return sdk.Result{
+		Code: sdk.ABCICodeOK,
 	}
 }

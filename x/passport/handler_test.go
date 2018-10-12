@@ -54,3 +54,22 @@ func TestPassportHandler(t *testing.T) {
 	require.NotNil(t, record.Path)
 	t.Logf("Path: %s\n", record.Path)
 }
+
+func TestPassportHandlerAuthorize(t *testing.T) {
+	ms, passKey := setupMultiStore()
+	cdc := wire.NewCodec()
+	auth.RegisterBaseAccount(cdc)
+
+	ctx := sdk.NewContext(ms, abci.Header{}, false, log.NewNopLogger())
+	keeper := NewKeeper(passKey, NewIpfsStore("https://ipfs.infura.io:5001"))
+
+	handler := NewHandler(keeper)
+
+	addr := sdk.AccAddress([]byte("test"))
+	receiver := sdk.AccAddress([]byte("receiver"))
+	msg := NewMsgAuthorize(addr, receiver)
+	result := handler(ctx, msg)
+	require.NotNil(t, result)
+	t.Log(result)
+	require.Equal(t, sdk.ABCICodeOK, result.Code)
+}

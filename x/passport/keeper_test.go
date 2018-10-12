@@ -46,3 +46,13 @@ func TestKeeper(t *testing.T) {
 	t.Logf("Path: %s\n", record2.Path)
 	require.NotEqual(t, record.Path, record2.Path)
 }
+
+func TestKeeperAuthorize(t *testing.T) {
+	ms, passKey := setupMultiStore()
+	passKeeper := NewKeeper(passKey, NewIpfsStore("https://ipfs.infura.io:5001"))
+	ctx := sdk.NewContext(ms, abci.Header{}, false, log.NewNopLogger())
+	addr := sdk.AccAddress([]byte("some-address"))
+	receiver := sdk.AccAddress([]byte("receiver-address"))
+	err := passKeeper.AuthorizePassport(ctx, addr, receiver)
+	require.Nil(t, err)
+}

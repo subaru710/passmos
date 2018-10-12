@@ -81,3 +81,45 @@ func (msg MsgUpdate) GetSignBytes() []byte {
 func (msg MsgUpdate) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{msg.Address}
 }
+
+// MsgAuthorize - create a passport with an external address
+// TODO: partial fields authorization
+type MsgAuthorize struct {
+	Address  sdk.AccAddress `json:"address"`
+	Receiver sdk.AccAddress `json:"receiver"`
+}
+
+var _ sdk.Msg = MsgAuthorize{}
+
+// NewMsgAuthorize - construct create msg.
+func NewMsgAuthorize(addr sdk.AccAddress, receiver sdk.AccAddress) MsgAuthorize {
+	return MsgAuthorize{Address: addr, Receiver: receiver}
+}
+
+// Implements Msg.
+func (msg MsgAuthorize) Type() string { return "passport" } // TODO: "passport/authorize"
+
+// Implements Msg.
+func (msg MsgAuthorize) ValidateBasic() sdk.Error {
+	if len(msg.Address) == 0 {
+		return sdk.ErrInvalidAddress(msg.Address.String())
+	}
+	if len(msg.Receiver) == 0 {
+		return sdk.ErrInvalidAddress(msg.Address.String())
+	}
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgAuthorize) GetSignBytes() []byte {
+	bin, err := msgCdc.MarshalJSON(msg)
+	if err != nil {
+		panic(err)
+	}
+	return sdk.MustSortJSON(bin)
+}
+
+// Implements Msg.
+func (msg MsgAuthorize) GetSigners() []sdk.AccAddress {
+	return []sdk.AccAddress{msg.Address}
+}

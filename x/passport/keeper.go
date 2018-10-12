@@ -1,6 +1,7 @@
 package passport
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -25,11 +26,15 @@ func NewKeeper(key sdk.StoreKey, store ExternalStore) Keeper {
 }
 
 func (k Keeper) CreatePassport(ctx sdk.Context, addr sdk.AccAddress, pd PersonalData) (*Record, sdk.Error) {
-	return k.createPassport(ctx, addr, pd)
+	return createPassport(k, ctx, addr, pd)
 }
 
 func (k Keeper) UpdatePassport(ctx sdk.Context, addr sdk.AccAddress, pd PersonalData) (*Record, sdk.Error) {
-	return k.updatePassport(ctx, addr, pd)
+	return updatePassport(k, ctx, addr, pd)
+}
+
+func (k Keeper) AuthorizePassport(ctx sdk.Context, addr sdk.AccAddress, receiver sdk.AccAddress) sdk.Error {
+	return authorizePassport(k, ctx, addr, receiver)
 }
 
 //______________________________________________________________________________________________
@@ -39,7 +44,18 @@ func setRecord(store sdk.KVStore, addr sdk.AccAddress, i int64, record []byte) {
 	store.Set(key, record)
 }
 
-func (k Keeper) createPassport(ctx sdk.Context, addr sdk.AccAddress, data PersonalData) (*Record, sdk.Error) {
+func addAuthorization(store sdk.KVStore, addr sdk.AccAddress, receiver sdk.AccAddress) {
+	var buffer bytes.Buffer
+	buffer.Write(addr)
+	buffer.WriteString(":")
+	buffer.Write(receiver)
+	key := buffer.Bytes()
+	if !store.Has(key) {
+		store.Set(key, receiver)
+	}
+}
+
+func createPassport(k Keeper, ctx sdk.Context, addr sdk.AccAddress, data PersonalData) (*Record, sdk.Error) {
 	store := ctx.KVStore(k.key)
 	if store.Has(addr) {
 		return nil, sdk.ErrInvalidAddress("this address already has a passport")
@@ -66,7 +82,7 @@ func (k Keeper) createPassport(ctx sdk.Context, addr sdk.AccAddress, data Person
 	return record, nil
 }
 
-func (k Keeper) updatePassport(ctx sdk.Context, addr sdk.AccAddress, data PersonalData) (*Record, sdk.Error) {
+func updatePassport(k Keeper, ctx sdk.Context, addr sdk.AccAddress, data PersonalData) (*Record, sdk.Error) {
 	store := ctx.KVStore(k.key)
 	if !store.Has(addr) {
 		return nil, sdk.ErrInvalidAddress("this address doesn't have a passport")
@@ -102,4 +118,10 @@ func (k Keeper) updatePassport(ctx sdk.Context, addr sdk.AccAddress, data Person
 	bz = k.cdc.MustMarshalBinary(cnt + 1)
 	store.Set(addr, bz)
 	return record, nil
+}
+
+func authorizePassport(k Keeper, ctx sdk.Context, addr sdk.AccAddress, receiver sdk.AccAddress) sdk.Error {
+	store := ctx.KVStore(k.key)
+	addAuthorization(store, addr, receiver)
+	return nil
 }
